@@ -1,0 +1,16 @@
+prometheus:
+  image: prom/prometheus
+  tag: v2.8.0
+  vice_president: false
+  disco: false
+  retention: 10d
+
+
+ingress:
+  host: prometheus-infra
+
+resources:
+  requests:
+    cpu: "12"
+    memory: 40Gi
+

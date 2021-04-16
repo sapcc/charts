@@ -25,6 +25,9 @@ spec:
 {{ tuple . "nova" "vspc" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
         configmap-etc-hash: {{ include (print $.Template.BasePath "/etc-configmap.yaml") . | sha256sum }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9102"
+        prometheus.io/targets: {{ required ".Values.alerts.prometheus missing" .Values.alerts.prometheus | quote }}
     spec:
       hostname: nova-vspc
       containers:
@@ -72,6 +75,22 @@ spec:
           volumeMounts:
             - mountPath: /var/run/serial_log_dir
               name: serial-log-dir
+        - name: metrics
+          image: {{ required ".Values.global.registry is missing" .Values.global.registry}}/vmware-vspc-exporter:{{ .Values.vspc.exporter.version }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5050
+              scheme: HTTP
+            periodSeconds: 20
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5050
+              scheme: HTTP
+            periodSeconds: 20
+            timeoutSeconds: 10
       volumes:
         - name: etcnova
           emptyDir: {}

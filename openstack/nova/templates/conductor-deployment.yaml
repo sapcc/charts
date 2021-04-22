@@ -72,22 +72,18 @@ spec:
           {{- end }}
           volumeMounts:
             - mountPath: /etc/nova
-              name: etcnova
-            - mountPath: /etc/nova/nova.conf
               name: nova-etc
-              subPath: nova.conf
-              readOnly: true
-            - mountPath: /etc/nova/nova-conductor.conf
-              name: nova-etc
-              subPath: nova-conductor.conf
-              readOnly: true
-            - mountPath: /etc/nova/logging.ini
-              name: nova-etc
-              subPath: logging.ini
-              readOnly: true
       volumes:
-        - name: etcnova
-          emptyDir: {}
         - name: nova-etc
-          configMap:
-            name: nova-etc
+          projected:
+            defaultMode: 420
+            sources:
+              - configMap:
+                  items:
+                    - key: nova.conf
+                      path: nova.conf
+                    - key: nova-conductor.conf
+                      path: nova-conductor.conf
+                    - key: logging.ini
+                      path: logging.ini
+                  name: nova-etc

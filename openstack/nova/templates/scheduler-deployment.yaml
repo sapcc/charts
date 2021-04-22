@@ -71,27 +71,21 @@ spec:
 {{ toYaml .Values.pod.resources.scheduler | indent 12 }}
           {{- end }}
           volumeMounts:
-            - name: etcnova
+            - name: nova-etc
               mountPath: /etc/nova
-            - name: nova-etc
-              mountPath: /etc/nova/nova.conf
-              subPath: nova.conf
-              readOnly: true
-            - name: nova-etc
-              mountPath: /etc/nova/nova-scheduler.conf
-              subPath: nova-scheduler.conf
-              readOnly: true
-            - name: nova-etc
-              mountPath: /etc/nova/policy.json
-              subPath: policy.json
-              readOnly: true
-            - name: nova-etc
-              mountPath: /etc/nova/logging.ini
-              subPath: logging.ini
-              readOnly: true
       volumes:
-        - name: etcnova
-          emptyDir: {}
         - name: nova-etc
-          configMap:
-            name: nova-etc
+          projected:
+            defaultMode: 420
+            sources:
+              - configMap:
+                  items:
+                    - key: nova.conf
+                      path: nova.conf
+                    - key: nova-scheduler.conf
+                      path: nova-scheduler.conf
+                    - key: policy.json
+                      path: policy.json
+                    - key: logging.ini
+                      path: logging.ini
+                  name: nova-etc

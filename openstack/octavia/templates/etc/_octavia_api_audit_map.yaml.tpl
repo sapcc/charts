@@ -26,6 +26,7 @@ resources:
         type_uri: network/loadbalancer/pools
         children:
           members:
+            type_uri: network/loadbalancer/pools/members
       l7policies:
         type_uri: network/loadbalancer/l7policies
         el_type_uri: network/loadbalancer/l7policy

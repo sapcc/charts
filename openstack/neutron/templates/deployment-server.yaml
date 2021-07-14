@@ -28,7 +28,11 @@ spec:
       annotations:
         configmap-etc-hash: {{ include (print $.Template.BasePath "/configmap-etc.yaml") . | sha256sum }}
         configmap-etc-region-hash: {{ include (print $.Template.BasePath "/configmap-etc-region.yaml") . | sha256sum }}
+{{- if or .Values.application_server.uwsgi .Values.application_server.apache2 }}
+        configmap-etc-api-hash: {{ include (print $.Template.BasePath "/configmap-etc-api.yaml") . | sha256sum }}
+{{- else }}
         configmap-bin-hash: {{ include (print $.Template.BasePath "/configmap-bin.yaml") . | sha256sum }}
+{{- end }}
     spec:
 {{ tuple . "neutron" "api" | include "kubernetes_pod_anti_affinity" | indent 6 }}
       containers:
@@ -52,8 +56,10 @@ spec:
           command: ['dumb-init', 'kubernetes-entrypoint']
           env:
             - name: COMMAND
-{{- if .Values.wsgi }}
-              value: "uwsgi --procname-prefix neutron-api --ini /etc/neutron/uwsgi.ini"
+{{- if .Values.application_server.uwsgi }}
+              value: "uwsgi --ini /etc/neutron/uwsgi.ini --stats /tmp/stats.socket"
+{{- else if .Values.application_server.apache2 }}
+              value: "/usr/sbin/apachectl -D FOREGROUND"
 {{- else }}
               value: "/container.init/neutron-server-start"
 {{- end }}
@@ -92,16 +98,12 @@ spec:
             - name: neutron-api
               containerPort: {{.Values.global.neutron_api_port_internal | default 9696}}
           volumeMounts:
-{{- if .Values.wsgi }}
+{{- if or .Values.application_server.uwsgi .Values.application_server.apache2 }}
             - mountPath: /etc/neutron
               name: empty-dir
             - mountPath: /etc/neutron/neutron.conf
               name: neutron-etc
               subPath: neutron.conf
-              readOnly: true
-            - mountPath: /etc/neutron/uwsgi.ini
-              name: neutron-etc
-              subPath: uwsgi.ini
               readOnly: true
             - mountPath: /etc/neutron/policy.json
               name: neutron-etc
@@ -167,7 +169,22 @@ spec:
             - mountPath: /development
               name: development
             {{- end }}
-
+            {{- if .Values.application_server.uwsgi }}
+            - mountPath: /etc/neutron/uwsgi.ini
+              name: neutron-etc-api
+              subPath: uwsgi.ini
+              readOnly: true
+            {{- end }}
+            {{- if .Values.application_server.apache2 }}
+            - mountPath: /etc/apache2/conf-enabled/neutron-api.conf
+              name: neutron-etc-api
+              subPath: neutron-api.conf
+              readOnly: true
+            - mountPath: /etc/apache2/envvars
+              name: neutron-etc-api
+              subPath: envvars
+              readOnly: true
+            {{- end }}
 {{- else }}
             - mountPath: /neutron-etc
               name: neutron-etc
@@ -214,6 +231,11 @@ spec:
         - name: development
           persistentVolumeClaim:
             claimName: development-pvclaim
+{{- end }}
+{{- if or .Values.application_server.uwsgi .Values.application_server.apache2 }}
+        - name: neutron-etc-api
+          configMap:
+            name: neutron-etc-api
 {{- end }}
         - name: container-init
           configMap:
